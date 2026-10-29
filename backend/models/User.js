@@ -10,8 +10,14 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [
+        function () {
+          return !this.phone && !this.phoneVerified;
+        },
+        'Email is required',
+      ],
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
     },
@@ -19,7 +25,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [
         function () {
-          return !this.googleId;
+          return !this.googleId && !this.phoneVerified;
         },
         'Password is required',
       ],
@@ -27,13 +33,13 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: [
-        function () {
-          return !this.googleId;
-        },
-        'Phone number is required',
-      ],
+      unique: true,
+      sparse: true,
       trim: true,
+    },
+    phoneVerified: {
+      type: Boolean,
+      default: false,
     },
     googleId: {
       type: String,
@@ -69,10 +75,36 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    kycStatus: {
+      type: String,
+      enum: ['PENDING', 'VERIFIED', 'REJECTED'],
+      default: 'PENDING',
+    },
+    kycRejectionReason: {
+      type: String,
+      trim: true,
+    },
+    kycReviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    kycReviewedAt: {
+      type: Date,
+    },
     status: {
       type: String,
       enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
       default: 'ACTIVE',
+    },
+    // New profile fields
+    dob: { type: Date },
+    age: { type: Number },
+    // Aadhaar stored encrypted, excluded from queries by default
+    aadhaar: { type: String, select: false },
+    // Notification preferences
+    notificationPreferences: {
+      email: { type: Boolean, default: true },
+      inApp: { type: Boolean, default: true },
     },
   },
   {

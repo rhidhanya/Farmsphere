@@ -21,6 +21,13 @@ const loanSchema = new mongoose.Schema(
       required: [true, 'Loan purpose is required'],
       trim: true,
     },
+    // Optional reference to a LoanProduct catalog entry (added in Phase 4).
+    // Legacy loans that pre-date the catalog simply omit this field.
+    loanProductId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LoanProduct',
+      default: null,
+    },
     interestRate: {
       type: Number,
       default: 0,

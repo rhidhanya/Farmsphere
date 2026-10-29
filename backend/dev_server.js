@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 async function seedRealisticData(adminUser) {
   const { User, Loan, Document } = require('./models');
   const { generateRepaymentSchedule } = require('./controllers/repaymentController');
+  const { encrypt } = require('./utils/cryptoHelper');
 
   console.log('--- Seeding Rich & Realistic FPO Domain Dataset ---');
 
@@ -18,7 +19,11 @@ async function seedRealisticData(adminUser) {
     fpoName: 'Green Valley Farmers Producer Co.',
     fpoRegistrationNo: 'FPO-MH-2024-001',
     address: { village: 'Khed', district: 'Pune', state: 'Maharashtra', pincode: '410505' },
+    dob: new Date('1982-05-14'),
+    age: 42,
+    aadhaar: encrypt('987654321012'),
     kycVerified: true,
+    kycStatus: 'VERIFIED',
     status: 'ACTIVE',
   });
 
@@ -31,7 +36,11 @@ async function seedRealisticData(adminUser) {
     fpoName: 'Green Valley Farmers Producer Co.',
     fpoRegistrationNo: 'FPO-MH-2024-001',
     address: { village: 'Baramati', district: 'Pune', state: 'Maharashtra', pincode: '413102' },
+    dob: new Date('1989-11-20'),
+    age: 35,
+    aadhaar: encrypt('987650000199'),
     kycVerified: true,
+    kycStatus: 'VERIFIED',
     status: 'ACTIVE',
   });
 
@@ -44,7 +53,12 @@ async function seedRealisticData(adminUser) {
     fpoName: 'Sahyadri Agri Farmers Producer Co.',
     fpoRegistrationNo: 'FPO-MH-2024-002',
     address: { village: 'Wai', district: 'Satara', state: 'Maharashtra', pincode: '412803' },
-    kycVerified: true,
+    dob: new Date('1976-03-08'),
+    age: 48,
+    aadhaar: encrypt('998877665544'),
+    kycVerified: false,
+    kycStatus: 'REJECTED',
+    kycRejectionReason: 'Aadhaar certificate image is blurred and unreadable. Please upload a clear color photo.',
     status: 'ACTIVE',
   });
 
@@ -57,7 +71,11 @@ async function seedRealisticData(adminUser) {
     fpoName: 'Sahyadri Agri Farmers Producer Co.',
     fpoRegistrationNo: 'FPO-MH-2024-002',
     address: { village: 'Pimpalgaon', district: 'Nashik', state: 'Maharashtra', pincode: '422209' },
+    dob: new Date('1994-08-25'),
+    age: 30,
+    aadhaar: encrypt('982233445566'),
     kycVerified: false,
+    kycStatus: 'PENDING',
     status: 'ACTIVE',
   });
 
@@ -218,11 +236,38 @@ async function seedRealisticData(adminUser) {
   });
 
   await Document.create({
+    loan: loan1._id,
+    user: farmer1._id,
+    documentType: 'ID_PROOF',
+    documentName: 'Ramesh_Patel_Aadhaar_Card.pdf',
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/aadhar.pdf',
+    status: 'VERIFIED',
+  });
+
+  await Document.create({
+    loan: loan1._id,
+    user: farmer1._id,
+    documentType: 'ID_PROOF',
+    documentName: 'Ramesh_Patel_PAN_Card.pdf',
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/pan.pdf',
+    status: 'VERIFIED',
+  });
+
+  await Document.create({
     loan: loan2._id,
     user: farmer2._id,
     documentType: 'ID_PROOF',
     documentName: 'Sita_Devi_Aadhar_Card.pdf',
     fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/aadhar.pdf',
+    status: 'VERIFIED',
+  });
+
+  await Document.create({
+    loan: loan2._id,
+    user: farmer2._id,
+    documentType: 'ID_PROOF',
+    documentName: 'Sita_Devi_PAN_Card.pdf',
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/pan.pdf',
     status: 'VERIFIED',
   });
 
@@ -234,6 +279,25 @@ async function seedRealisticData(adminUser) {
     fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/fpo_cert.pdf',
     status: 'REJECTED',
     rejectionReason: 'Illegible signature on page 2.',
+  });
+
+  // Anita Sharma (Pending KYC) with both Aadhaar and PAN ready for admin review
+  await Document.create({
+    loan: loan1._id,
+    user: farmer4._id,
+    documentType: 'ID_PROOF',
+    documentName: 'Anita_Sharma_Aadhaar_Card.pdf',
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/anita_aadhaar.pdf',
+    status: 'PENDING',
+  });
+
+  await Document.create({
+    loan: loan1._id,
+    user: farmer4._id,
+    documentType: 'ID_PROOF',
+    documentName: 'Anita_Sharma_PAN_Card.pdf',
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/fpo_docs/anita_pan.pdf',
+    status: 'PENDING',
   });
 
   console.log('✔ Realistic FPO dataset seeded successfully (Farmers, Loans, Repayments, Documents)');
@@ -266,7 +330,7 @@ async function startDevServer() {
         name: 'FPO System Administrator',
         email: adminEmail,
         password: 'AdminPassword123!',
-        phone: '9876543210',
+        phone: '9999999999', // Updated unique phone
         role: 'FPO_ADMIN',
         fpoName: 'Green Valley Farmers Producer Co.',
         fpoRegistrationNo: 'FPO-MH-2024-001',

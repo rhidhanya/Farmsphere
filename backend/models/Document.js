@@ -5,7 +5,7 @@ const documentSchema = new mongoose.Schema(
     loan: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Loan',
-      required: [true, 'Loan reference is required'],
+      required: false,
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -33,6 +33,14 @@ const documentSchema = new mongoose.Schema(
     fileUrl: {
       type: String,
       required: [true, 'File URL is required'],
+      trim: true,
+    },
+    cloudinaryPublicId: {
+      type: String,
+      trim: true,
+    },
+    cloudinaryResourceType: {
+      type: String,
       trim: true,
     },
     fileType: {

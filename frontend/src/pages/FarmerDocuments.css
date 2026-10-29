@@ -1,0 +1,880 @@
+/* =========================================================
+   FARMER DOCUMENT UPLOAD & TRACKING UI - STYLESHEET
+   Matches FarmSphere Design System / FarmerApply tokens
+   ========================================================= */
+
+/* ─── Layout ─────────────────────────────────────────────── */
+.fd-layout {
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Main Container ─────────────────────────────────────── */
+.fd-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem 4rem 1.75rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ─── Page Title Row ─────────────────────────────────────── */
+.fd-page-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fd-page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 0.25rem 0;
+}
+
+.fd-page-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 520px;
+}
+
+.fd-btn-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.fd-btn-refresh:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.fd-btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Section Cards ──────────────────────────────────────── */
+.fd-section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.fd-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fd-section-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-glow);
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fd-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 0.2rem 0;
+}
+
+.fd-section-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ─── Loading / Error / Empty States ─────────────────────── */
+.fd-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 0.75rem 0;
+}
+
+.fd-preview-note {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--primary-glow);
+  border-radius: var(--radius-md);
+  color: var(--primary);
+}
+
+.fd-error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--status-error, #ef4444);
+  font-size: 0.83rem;
+  flex-wrap: wrap;
+}
+
+.fd-dismiss-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.fd-dismiss-btn:hover {
+  opacity: 1;
+}
+
+.fd-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.fd-empty-small {
+  padding: 1.5rem 1rem;
+}
+
+.fd-empty-icon {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.fd-empty-state h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.fd-empty-state p {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 320px;
+}
+
+.fd-btn-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.fd-btn-cta:hover {
+  opacity: 0.88;
+}
+
+/* ─── Loan Selector ──────────────────────────────────────── */
+.fd-loan-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fd-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 560px;
+  width: 100%;
+}
+
+.fd-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 0.65rem 2.5rem 0.65rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.fd-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.fd-select-arrow {
+  position: absolute;
+  right: 0.85rem;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+
+/* Loan summary chip */
+.fd-loan-summary-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  max-width: 560px;
+}
+
+.fd-loan-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.fd-chip-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.fd-chip-val {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.fd-loan-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fd-loan-status-pill.status-submitted,
+.fd-loan-status-pill.status-pending {
+  background: rgba(234, 179, 8, 0.12);
+  color: var(--status-warning, #d97706);
+}
+
+.fd-loan-status-pill.status-approved {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--status-success, #16a34a);
+}
+
+.fd-loan-status-pill.status-rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--status-error, #ef4444);
+}
+
+.fd-loan-status-pill.status-disbursed {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.fd-loan-status-pill.status-under_review {
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7;
+}
+
+/* ─── Status Summary Bar ─────────────────────────────────── */
+.fd-status-summary {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.fd-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius-full);
+}
+
+.fd-chip-pending {
+  background: rgba(234, 179, 8, 0.12);
+  color: var(--status-warning, #d97706);
+}
+
+.fd-chip-verified {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--status-success, #16a34a);
+}
+
+.fd-chip-rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--status-error, #ef4444);
+}
+
+/* ─── Document List ──────────────────────────────────────── */
+.fd-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.fd-doc-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  transition: border-color var(--transition-fast);
+  flex-wrap: wrap;
+}
+
+.fd-doc-row.status-pending {
+  border-left: 3px solid var(--status-warning, #d97706);
+}
+
+.fd-doc-row.status-verified {
+  border-left: 3px solid var(--status-success, #16a34a);
+}
+
+.fd-doc-row.status-rejected {
+  border-left: 3px solid var(--status-error, #ef4444);
+}
+
+.fd-doc-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.fd-doc-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.fd-doc-type-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+  background: var(--primary-glow);
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+}
+
+.fd-doc-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.fd-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.fd-doc-verified-by {
+  color: var(--status-success, #16a34a);
+}
+
+.fd-rejection-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--status-error, #ef4444);
+  background: rgba(239, 68, 68, 0.07);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.fd-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.fd-status-badge.status-pending {
+  background: rgba(234, 179, 8, 0.12);
+  color: var(--status-warning, #d97706);
+}
+
+.fd-status-badge.status-verified {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--status-success, #16a34a);
+}
+
+.fd-status-badge.status-rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--status-error, #ef4444);
+}
+
+/* Doc action buttons */
+.fd-doc-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.fd-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fd-btn-icon:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.fd-btn-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── Upload Grid ────────────────────────────────────────── */
+.fd-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* ─── Upload Slot ────────────────────────────────────────── */
+.fd-upload-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  transition: border-color var(--transition-fast);
+}
+
+.fd-slot-done {
+  opacity: 0.8;
+  background: rgba(34, 197, 94, 0.04);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.fd-upload-success-flash {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: var(--status-success, #16a34a);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.fd-success-icon {
+  color: var(--status-success, #16a34a);
+  flex-shrink: 0;
+}
+
+.fd-slot-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.fd-required-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--status-error, #ef4444);
+  letter-spacing: 0.03em;
+}
+
+.fd-slot-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+/* Drop zone */
+.fd-drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  text-align: center;
+}
+
+.fd-drop-zone:hover,
+.fd-drop-zone:focus-within {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.fd-drop-zone.has-file {
+  border-color: var(--primary);
+  border-style: solid;
+  background: var(--primary-glow);
+}
+
+.fd-drop-zone.has-error {
+  border-color: var(--status-error, #ef4444);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.fd-drop-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.fd-drop-icon {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.fd-drop-text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.fd-browse-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.fd-drop-hint {
+  font-size: 0.73rem;
+  color: var(--text-dim, var(--text-muted));
+  margin: 0;
+  opacity: 0.7;
+}
+
+/* Staged file display */
+.fd-staged-file {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.fd-staged-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.fd-staged-name {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  max-width: 160px;
+}
+
+.fd-staged-size {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.fd-btn-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.fd-btn-remove:hover {
+  color: var(--status-error, #ef4444);
+  border-color: var(--status-error, #ef4444);
+}
+
+/* Upload button */
+.fd-btn-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+  width: 100%;
+}
+
+.fd-btn-upload:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.fd-btn-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Field error */
+.fd-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--status-error, #ef4444);
+  margin: 0;
+}
+
+/* Hidden file input */
+.fd-hidden-input {
+  display: none;
+}
+
+/* ─── Info Box ───────────────────────────────────────────── */
+.fd-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--primary-glow);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  color: var(--primary);
+}
+
+/* ─── Upload Constraints Note ────────────────────────────── */
+.fd-constraints-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.fd-constraint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ─── Limitations Notice ─────────────────────────────────── */
+.fd-limitations-notice {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+}
+
+.fd-limitations-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+}
+
+.fd-limitations-header h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.fd-limitations-list {
+  padding-left: 1.25rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fd-limitations-list li {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.fd-limitations-list code {
+  font-family: monospace;
+  font-size: 0.78rem;
+  background: var(--bg-input);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  color: var(--primary);
+}
+
+/* ─── User chip ──────────────────────────────────────────── */
+.fd-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.fd-user-name {
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Spinning animation ─────────────────────────────────── */
+@keyframes fd-spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: fd-spin 0.8s linear infinite;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .fd-container {
+    padding: 1rem 1rem 3rem 1rem;
+  }
+
+  .fd-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fd-doc-row {
+    flex-direction: column;
+  }
+
+  .fd-doc-row-right {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
+  .fd-loan-summary-chip {
+    gap: 0.35rem 0.8rem;
+  }
+
+  .fd-page-title-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}

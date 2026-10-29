@@ -20,7 +20,7 @@ async function seedTestData() {
         name: 'Ramesh Patel',
         email: farmer1Email,
         password: 'Password@123',
-        phone: '9876543210',
+        phone: '9998887777', // Unique phone to avoid duplicate
         role: 'FARMER',
         fpoName: 'Green Valley Farmers Producer Co.',
         fpoRegistrationNo: 'FPO-MH-2024-001',
@@ -45,7 +45,7 @@ async function seedTestData() {
         name: 'Sita Devi',
         email: farmer2Email,
         password: 'Password@123',
-        phone: '9876500001',
+        phone: '9997776666', // Unique phone to avoid duplicate
         role: 'FARMER',
         fpoName: 'Green Valley Farmers Producer Co.',
         fpoRegistrationNo: 'FPO-MH-2024-001',

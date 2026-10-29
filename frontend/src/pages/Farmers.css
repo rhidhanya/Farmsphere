@@ -466,6 +466,10 @@
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  min-height: 175px;
+  box-sizing: border-box;
+  overflow: hidden;
   gap: 0.5rem;
 }
 

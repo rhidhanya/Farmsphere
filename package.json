@@ -1,0 +1,16 @@
+{
+  "name": "fpo-loan-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/dev_server.js",
+    "test": "node verify.js"
+  },
+  "config": {
+    "mongodbMemoryServer": {
+      "arch": "arm64"
+    }
+  },
+  "dependencies": {}
+}

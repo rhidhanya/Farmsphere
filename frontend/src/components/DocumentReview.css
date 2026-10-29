@@ -63,8 +63,12 @@
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  min-height: 195px;
+  box-sizing: border-box;
+  overflow: hidden;
   gap: 0.75rem;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .doc-item-card:hover {
@@ -145,8 +149,13 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.45rem;
-  margin-top: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-action-btn {

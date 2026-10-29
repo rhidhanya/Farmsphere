@@ -255,18 +255,27 @@
 }
 
 @media print {
+  .sidebar-root,
   .admin-sidebar,
   .admin-header-root,
+  .farmer-header-root,
   .report-header-actions,
   .reports-filter-bar,
-  .reports-tab-bar {
+  .reports-tab-bar,
+  .chatbot-container,
+  .chatbot-fab {
     display: none !important;
   }
   .admin-main-wrapper {
     margin-left: 0 !important;
+    padding: 0 !important;
   }
   .reports-page-container {
-    background: white;
-    color: black;
+    background: white !important;
+    color: black !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
   }
 }

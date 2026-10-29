@@ -279,6 +279,15 @@ const LoanDetail = () => {
               <span className="spec-value">{loan.purpose}</span>
             </div>
 
+            {loan.loanProductId && (
+              <div className="spec-item">
+                <span className="spec-label">Scheme / Product</span>
+                <span className="spec-value highlight-green" style={{ fontWeight: 600, color: 'var(--success, #16a34a)' }}>
+                  {loan.loanProductId.name} ({loan.loanProductId.code})
+                </span>
+              </div>
+            )}
+
             <div className="spec-item">
               <span className="spec-label">{t('loans.tenure')}</span>
               <span className="spec-value">{loan.tenureMonths} Months</span>
@@ -346,7 +355,20 @@ const LoanDetail = () => {
               </div>
               <div className="info-row">
                 <Phone size={15} className="info-icon" />
-                <span>{farmer.phone || 'N/A'}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span>{farmer.phone || 'N/A'}</span>
+                  {farmer.phone && farmer.phone !== 'N/A' && (
+                    farmer.phoneVerified ? (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(22, 163, 74, 0.15)', color: '#16a34a', border: '1px solid rgba(22, 163, 74, 0.3)', borderRadius: '4px', padding: '1px 5px', fontWeight: 600 }}>
+                        ✅ Verified
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '4px', padding: '1px 5px', fontWeight: 500 }}>
+                        ⚠️ Unverified
+                      </span>
+                    )
+                  )}
+                </span>
               </div>
               <div className="info-row">
                 <Building2 size={15} className="info-icon" />

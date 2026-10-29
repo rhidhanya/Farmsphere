@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -14,11 +14,16 @@ import {
   ShieldCheck,
   Calendar,
   ExternalLink,
+  Download,
   CheckCircle2,
   XCircle,
   Clock,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
-import { loanAPI, documentAPI } from '../api/client';
+import { loanAPI, documentAPI, adminAPI } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { openDocumentPreview, downloadDocumentFile } from '../utils/documentPreview';
 import {
   PageHeader,
   DataTable,
@@ -31,447 +36,414 @@ import './Farmers.css';
 
 const Farmers = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const [farmers, setFarmers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [loans, setLoans] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [selectedFarmer, setSelectedFarmer] = useState(null);
-  const [activeModalTab, setActiveModalTab] = useState('profile');
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedFarmer, setSelectedFarmer] = useState(null);
+  const [activeModalTab, setActiveModalTab] = useState('profile');
+  const [downloadingId, setDownloadingId] = useState(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
+  // Fetch all required data
+  const fetchData = useCallback(async () => {
     try {
-      const [loansRes, docsRes] = await Promise.allSettled([
-        loanAPI.getAllLoans({ limit: 100 }),
+      setLoading(true);
+      setError('');
+      const [farmerRes, loansRes, docsRes] = await Promise.allSettled([
+        adminAPI.getFarmers(),
+        loanAPI.getAllLoans({ limit: 500 }),
         documentAPI.getAllDocuments(),
       ]);
 
-      let fetchedLoans = [];
+      let farmerList = [];
+      if (farmerRes.status === 'fulfilled' && farmerRes.value.data?.data?.farmers) {
+        farmerList = farmerRes.value.data.data.farmers;
+      }
+
+      let loanList = [];
       if (loansRes.status === 'fulfilled' && loansRes.value.data?.data?.loans) {
-        fetchedLoans = loansRes.value.data.data.loans;
-      } else if (loansRes.status === 'rejected') {
-        console.warn('Loan fetch error:', loansRes.reason?.message);
+        loanList = loansRes.value.data.data.loans;
       }
 
-      let fetchedDocs = [];
+      let docList = [];
       if (docsRes.status === 'fulfilled' && docsRes.value.data?.data?.documents) {
-        fetchedDocs = docsRes.value.data.data.documents;
-      } else if (docsRes.status === 'rejected') {
-        console.warn('Document fetch error:', docsRes.reason?.message);
+        docList = docsRes.value.data.data.documents;
       }
 
-      setLoans(fetchedLoans);
-      setDocuments(fetchedDocs);
+      const farmerMap = new Map();
+      farmerList.forEach((f) => {
+        farmerMap.set(String(f._id), {
+          ...f,
+          loans: f.loans || [],
+          documents: f.documents || [],
+        });
+      });
+
+      // Group loans by farmer if any loan is not attached
+      loanList.forEach((ln) => {
+        const farmerObj = ln.farmer;
+        if (!farmerObj || !farmerObj._id) return;
+        const fid = String(farmerObj._id);
+        if (!farmerMap.has(fid)) {
+          farmerMap.set(fid, {
+            ...farmerObj,
+            _id: fid,
+            loans: [],
+            documents: [],
+          });
+        }
+        const record = farmerMap.get(fid);
+        if (!record.loans.some((l) => String(l._id) === String(ln._id))) {
+          record.loans.push(ln);
+        }
+      });
+
+      // Group documents by farmer
+      docList.forEach((doc) => {
+        const uid = String(doc.user?._id || doc.user || '');
+        if (uid && farmerMap.has(uid)) {
+          const record = farmerMap.get(uid);
+          if (!record.documents.some((d) => String(d._id) === String(doc._id))) {
+            record.documents.push(doc);
+          }
+        }
+      });
+
+      setFarmers(Array.from(farmerMap.values()));
     } catch (err) {
       setError(err.response?.data?.message || err.message || t('common.error'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  // Process loans to group by unique Farmer entity
-  const farmersList = useMemo(() => {
-    const farmerMap = new Map();
-
-    loans.forEach((loan) => {
-      const farmerObj = loan.farmer;
-      if (!farmerObj || !farmerObj._id) return;
-
-      const farmerId = farmerObj._id.toString();
-
-      if (!farmerMap.has(farmerId)) {
-        farmerMap.set(farmerId, {
-          _id: farmerId,
-          name: farmerObj.name || 'N/A',
-          email: farmerObj.email || 'N/A',
-          phone: farmerObj.phone || 'N/A',
-          fpoName: farmerObj.fpoName || 'Green Valley FPO',
-          fpoRegistrationNo: farmerObj.fpoRegistrationNo || 'N/A',
-          address: farmerObj.address || {},
-          kycVerified: farmerObj.kycVerified ?? false,
-          status: farmerObj.status || 'ACTIVE',
-          createdAt: farmerObj.createdAt || loan.createdAt,
-          loans: [],
-          documents: [],
-        });
-      }
-
-      const farmerRecord = farmerMap.get(farmerId);
-      farmerRecord.loans.push(loan);
-    });
-
-    // Attach documents belonging to each farmer
-    documents.forEach((doc) => {
-      const docUserId = doc.user?._id || doc.user;
-      if (docUserId && farmerMap.has(docUserId.toString())) {
-        farmerMap.get(docUserId.toString()).documents.push(doc);
-      }
-    });
-
-    return Array.from(farmerMap.values());
-  }, [loans, documents]);
-
-  // Search & Filtered Farmers
+  // Filtering & pagination
   const filteredFarmers = useMemo(() => {
-    return farmersList.filter((farmer) => {
-      const query = searchTerm.toLowerCase().trim();
+    return farmers.filter((farmer) => {
+      const q = searchTerm.toLowerCase();
       const matchesSearch =
-        !query ||
-        farmer.name.toLowerCase().includes(query) ||
-        farmer.email.toLowerCase().includes(query) ||
-        farmer.phone.includes(query) ||
-        (farmer.address?.village && farmer.address.village.toLowerCase().includes(query)) ||
-        (farmer.address?.district && farmer.address.district.toLowerCase().includes(query));
+        !searchTerm.trim() ||
+        farmer.name?.toLowerCase().includes(q) ||
+        farmer.email?.toLowerCase().includes(q) ||
+        farmer.phone?.toLowerCase().includes(q) ||
+        farmer._id?.toLowerCase().includes(q);
 
-      const latestLoan = farmer.loans[0];
       const matchesStatus =
-        statusFilter === 'ALL' ||
-        (latestLoan && latestLoan.status.toUpperCase() === statusFilter);
+        statusFilter === 'ALL' || farmer.status?.toUpperCase() === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
-  }, [farmersList, searchTerm, statusFilter]);
+  }, [farmers, searchTerm, statusFilter]);
 
-  // Paginated data slice
+  const totalPages = Math.ceil(filteredFarmers.length / pageSize) || 1;
   const paginatedFarmers = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredFarmers.slice(start, start + pageSize);
   }, [filteredFarmers, currentPage, pageSize]);
 
-  const totalPages = Math.ceil(filteredFarmers.length / pageSize) || 1;
-
-  // Format full address from User address schema
   const formatAddress = (addr) => {
-    if (!addr) return t('farmers.address');
-    const parts = [addr.village, addr.district, addr.state, addr.pincode].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : t('farmers.address');
+    if (!addr) return t('farmers.address', 'Not Specified');
+    if (typeof addr === 'string') return addr;
+    return [addr.street, addr.village, addr.district, addr.state, addr.pincode]
+      .filter(Boolean)
+      .join(', ') || 'Not Specified';
   };
 
-  // Table Columns
-  const columns = [
-    {
-      header: t('farmers.farmerName'),
-      key: 'name',
-      sortable: true,
-      render: (item) => (
-        <div className="farmer-profile-cell">
-          <div className="farmer-avatar-icon">
-            <User size={18} />
-          </div>
-          <div className="farmer-name-group">
-            <span className="farmer-name-text">{item.name}</span>
-            {item.kycVerified && (
-              <span className="kyc-badge" title={t('farmers.kycVerified')}>
-                <CheckCircle2 size={12} /> {t('farmers.kycVerified')}
-              </span>
-            )}
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: t('farmers.phone'),
-      key: 'email',
-      render: (item) => (
-        <div className="contact-cell-group">
-          <span className="contact-line">
-            <Mail size={13} className="cell-icon" /> {item.email}
-          </span>
-          <span className="contact-line phone">
-            <Phone size={13} className="cell-icon" /> {item.phone}
-          </span>
-        </div>
-      ),
-    },
-    {
-      header: t('farmers.fpoName'),
-      key: 'fpoName',
-      render: (item) => (
-        <div className="location-cell-group">
-          <span className="fpo-line">
-            <Building2 size={13} className="cell-icon" /> {item.fpoName}
-          </span>
-          <span className="address-line">
-            <MapPin size={13} className="cell-icon" /> {formatAddress(item.address)}
-          </span>
-        </div>
-      ),
-    },
-    {
-      header: t('loans.title'),
-      key: 'loans',
-      align: 'center',
-      render: (item) => (
-        <span className="loan-count-badge">
-          {item.loans.length} {t('loans.title')}
-        </span>
-      ),
-    },
-    {
-      header: t('farmers.kycStatus'),
-      key: 'status',
-      align: 'center',
-      render: (item) => {
-        const latestLoan = item.loans[0];
-        return latestLoan ? (
-          <StatusBadge status={latestLoan.status} />
-        ) : (
-          <StatusBadge status="ACTIVE" customLabel={t('status.active')} />
-        );
-      },
-    },
-    {
-      header: t('common.date'),
-      key: 'createdAt',
-      render: (item) => (
-        <span className="date-cell">
-          {new Date(item.createdAt).toLocaleDateString()}
-        </span>
-      ),
-    },
-    {
-      header: t('common.actions'),
-      key: 'actions',
-      align: 'right',
-      render: (item) => (
-        <button
-          onClick={() => {
-            setSelectedFarmer(item);
-            setActiveModalTab('profile');
-          }}
-          className="btn btn-secondary view-farmer-btn"
-          title={t('farmers.viewProfile')}
-        >
-          <Eye size={15} />
-          <span>{t('farmers.viewProfile')}</span>
-        </button>
-      ),
-    },
-  ];
+  const handleDownloadReport = async (farmerId, farmerName = 'Farmer') => {
+    try {
+      setDownloadingId(farmerId);
+      const response = await adminAPI.downloadFarmerReport(farmerId);
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FarmerReport_${farmerName.replace(/\s+/g, '_')}_${farmerId.slice(-6)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Report download failed:', err);
+      alert(err.response?.data?.message || 'Failed to download farmer report');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  if (loading) return <LoadingSpinner message="Loading farmer records..." />;
+  if (error) return <ErrorState message={error} onRetry={fetchData} />;
 
   return (
-    <div className="farmers-page-container">
+    <div className="farmers-page">
       <PageHeader
-        title={t('farmers.title')}
-        actions={
-          <button onClick={fetchData} className="btn btn-secondary refresh-btn" disabled={loading}>
-            <RefreshCw size={16} className={loading ? 'spinning' : ''} />
-            <span>{t('common.refresh')}</span>
-          </button>
-        }
+        title={t('farmers.title', 'Farmer Directory & Portfolio Management')}
+        icon={<Users size={24} />}
       />
 
-      {/* Filter & Search Bar */}
-      <div className="farmers-filter-bar glass-panel">
-        <div className="search-input-wrapper">
+      {/* Search & Filters */}
+      <div className="toolbar flex items-center space-x-4 mb-4">
+        <div className="search-input-wrapper flex-1">
           <Search size={16} className="search-icon" />
           <input
             type="text"
-            placeholder={t('farmers.searchPlaceholder')}
+            className="form-input search-input"
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="filter-search-input"
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('farmers.searchPlaceholder', 'Search by name, phone, email, or ID...')}
           />
         </div>
 
-        <div className="status-filter-wrapper">
-          <label htmlFor="status-select" className="filter-label">
-            {t('common.filter')}:
-          </label>
-          <select
-            id="status-select"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="filter-select"
-          >
-            <option value="ALL">{t('loans.allStatuses')}</option>
-            <option value="SUBMITTED">{t('status.submitted')}</option>
-            <option value="UNDER_REVIEW">{t('status.underReview')}</option>
-            <option value="APPROVED">{t('status.approved')}</option>
-            <option value="REJECTED">{t('status.rejected')}</option>
-            <option value="DISBURSED">{t('status.disbursed')}</option>
-            <option value="CLOSED">{t('status.closed')}</option>
-          </select>
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="form-select select w-auto"
+        >
+          <option value="ALL">{t('common.all', 'All Statuses')}</option>
+          <option value="ACTIVE">{t('common.active', 'Active')}</option>
+          <option value="INACTIVE">{t('common.inactive', 'Inactive')}</option>
+        </select>
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={fetchData}
+          title={t('common.refresh', 'Refresh')}
+        >
+          <RefreshCw size={15} />
+          <span>{t('common.refresh', 'Refresh')}</span>
+        </button>
       </div>
 
-      {/* Main Content Area */}
-      {loading ? (
-        <div className="farmers-loading-container glass-panel">
-          <LoadingSpinner message={t('common.loading')} />
-        </div>
-      ) : error ? (
-        <ErrorState title={t('common.error')} message={error} onRetry={fetchData} />
-      ) : filteredFarmers.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={t('empty.noData')}
-          description={t('empty.tryAdjusting')}
-          action={
-            (searchTerm || statusFilter !== 'ALL') && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('ALL');
-                }}
-                className="btn btn-secondary"
-              >
-                {t('common.reset')}
-              </button>
-            )
-          }
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={paginatedFarmers}
-          pagination={{
-            currentPage,
-            totalPages,
-            totalItems: filteredFarmers.length,
-            pageSize,
-            onPageChange: setCurrentPage,
-            onPageSizeChange: (newSize) => {
-              setPageSize(newSize);
-              setCurrentPage(1);
+      <DataTable
+        columns={[
+          {
+            header: t('farmers.farmerName', 'Farmer Name & ID'),
+            key: 'name',
+            render: (row) => (
+              <div className="flex items-center space-x-3">
+                <div className="avatar-circle">
+                  <User size={16} />
+                </div>
+                <div>
+                  <strong className="block text-main">{row.name}</strong>
+                  <span className="text-xs text-muted font-mono">#{String(row._id).slice(-8)}</span>
+                </div>
+              </div>
+            ),
+          },
+          { header: t('auth.emailLabel', 'Email'), key: 'email' },
+          { header: t('farmers.phone', 'Phone Number'), key: 'phone' },
+          {
+            header: t('farmers.kycStatus', 'KYC Status'),
+            key: 'kycStatus',
+            render: (row) => {
+              const st = row.kycStatus || (row.kycVerified ? 'VERIFIED' : 'PENDING');
+              return <StatusBadge status={st} size="small" />;
             },
-          }}
-          onRowClick={(item) => {
-            setSelectedFarmer(item);
-            setActiveModalTab('profile');
-          }}
-        />
-      )}
+          },
+          {
+            header: t('common.status', 'Account Status'),
+            key: 'status',
+            render: (row) => <StatusBadge status={row.status} size="small" />,
+          },
+          {
+            header: t('common.actions', 'Actions'),
+            key: 'actions',
+            render: (row) => (
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFarmer(row);
+                    setActiveModalTab('profile');
+                  }}
+                >
+                  <Eye size={13} /> <span>{t('common.view', 'View')}</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadReport(row._id, row.name);
+                  }}
+                  disabled={downloadingId === row._id}
+                  title={t('farmers.downloadReport', 'Download PDF Report')}
+                >
+                  {downloadingId === row._id ? (
+                    <Loader2 size={13} className="spinning" />
+                  ) : (
+                    <Download size={13} />
+                  )}
+                  <span>{t('farmers.downloadReport', 'Report')}</span>
+                </button>
+              </div>
+            ),
+          },
+        ]}
+        data={paginatedFarmers}
+        pagination={{
+          currentPage,
+          totalPages,
+          totalItems: filteredFarmers.length,
+          pageSize,
+          onPageChange: setCurrentPage,
+          onPageSizeChange: (size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          },
+        }}
+      />
 
-      {/* Farmer Details Modal Drawer */}
+      {/* Farmer Detail Modal Drawer */}
       {selectedFarmer && (
         <div className="modal-backdrop" onClick={() => setSelectedFarmer(null)}>
           <div className="modal-card glass-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-wrapper">
+            <div className="modal-header flex justify-between items-center">
+              <div className="flex items-center space-x-3">
                 <div className="modal-avatar">
                   <User size={22} />
                 </div>
                 <div>
                   <h2 className="modal-title">{selectedFarmer.name}</h2>
                   <span className="modal-subtitle">
-                    {t('common.id')}: #{selectedFarmer._id.substring(0, 8)}... | {t('farmers.farmerName')}
+                    {t('common.id', 'ID')}: #{selectedFarmer._id} | {selectedFarmer.fpoName || 'FPO Member'}
                   </span>
                 </div>
               </div>
-              <button
-                className="modal-close-btn"
-                onClick={() => setSelectedFarmer(null)}
-                aria-label="Close modal"
-              >
-                &times;
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleDownloadReport(selectedFarmer._id, selectedFarmer.name)}
+                  disabled={downloadingId === selectedFarmer._id}
+                >
+                  {downloadingId === selectedFarmer._id ? (
+                    <Loader2 size={13} className="spinning" />
+                  ) : (
+                    <Download size={13} />
+                  )}
+                  <span>{t('farmers.downloadReport', 'Download Report')}</span>
+                </button>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setSelectedFarmer(null)}
+                  aria-label="Close modal"
+                >
+                  &times;
+                </button>
+              </div>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div className="modal-tabs">
+            {/* Navigation Tabs */}
+            <div className="modal-tabs mt-4 flex space-x-2">
               <button
+                type="button"
                 className={`tab-btn ${activeModalTab === 'profile' ? 'active' : ''}`}
                 onClick={() => setActiveModalTab('profile')}
               >
-                <User size={15} />
-                <span>{t('farmers.profileModalTitle')}</span>
+                <User size={15} /> <span>{t('farmers.profileModalTitle', 'Profile & KYC')}</span>
               </button>
               <button
+                type="button"
                 className={`tab-btn ${activeModalTab === 'loans' ? 'active' : ''}`}
                 onClick={() => setActiveModalTab('loans')}
               >
-                <FileText size={15} />
-                <span>{t('farmers.loanHistory')} ({selectedFarmer.loans.length})</span>
+                <FileText size={15} />{' '}
+                <span>
+                  {t('farmers.loanHistory', 'Credit History')} ({selectedFarmer.loans?.length || 0})
+                </span>
               </button>
               <button
+                type="button"
                 className={`tab-btn ${activeModalTab === 'documents' ? 'active' : ''}`}
                 onClick={() => setActiveModalTab('documents')}
               >
-                <ShieldCheck size={15} />
-                <span>{t('loanDetail.uploadedDocs')} ({selectedFarmer.documents.length})</span>
+                <ShieldCheck size={15} />{' '}
+                <span>
+                  {t('loanDetail.uploadedDocs', 'Documents')} ({selectedFarmer.documents?.length || 0})
+                </span>
               </button>
             </div>
 
-            {/* Modal Body Views */}
-            <div className="modal-body">
-              {/* TAB 1: Profile & FPO Details */}
+            <div className="modal-body mt-4">
+              {/* TAB 1: Profile & KYC Details */}
               {activeModalTab === 'profile' && (
                 <div className="tab-content profile-tab">
                   <div className="detail-section">
-                    <h3 className="section-title">{t('farmers.profileModalTitle')}</h3>
+                    <h3 className="section-title">{t('farmers.profileModalTitle', 'Farmer Profile Details')}</h3>
                     <div className="detail-grid">
                       <div className="detail-field">
-                        <span className="field-label">{t('farmers.farmerName')}</span>
-                        <span className="field-value">{selectedFarmer.name}</span>
+                        <span className="field-label">{t('farmers.farmerName', 'Legal Name')}</span>
+                        <strong className="field-value">{selectedFarmer.name}</strong>
                       </div>
                       <div className="detail-field">
-                        <span className="field-label">{t('auth.emailLabel')}</span>
-                        <span className="field-value">{selectedFarmer.email}</span>
+                        <span className="field-label">{t('auth.emailLabel', 'Email Address')}</span>
+                        <span className="field-value">{selectedFarmer.email || 'N/A'}</span>
                       </div>
                       <div className="detail-field">
-                        <span className="field-label">{t('farmers.phone')}</span>
-                        <span className="field-value">{selectedFarmer.phone}</span>
-                      </div>
-                      <div className="detail-field">
-                        <span className="field-label">{t('farmers.kycStatus')}</span>
+                        <span className="field-label">{t('farmers.phone', 'Phone Number')}</span>
                         <span className="field-value">
-                          {selectedFarmer.kycVerified ? (
-                            <span className="text-emerald font-semibold inline-flex items-center gap-1">
-                              <CheckCircle2 size={14} /> {t('farmers.kycVerified')}
-                            </span>
-                          ) : (
-                            <span className="text-amber font-semibold inline-flex items-center gap-1">
-                              <Clock size={14} /> {t('farmers.kycPending')}
-                            </span>
+                          {selectedFarmer.phone || 'N/A'}{' '}
+                          {selectedFarmer.phoneVerified && (
+                            <span className="text-xs text-emerald font-semibold ml-1">✓ Verified</span>
                           )}
                         </span>
                       </div>
                       <div className="detail-field">
-                        <span className="field-label">{t('common.status')}</span>
+                        <span className="field-label">Age &amp; Date of Birth</span>
                         <span className="field-value">
-                          <StatusBadge status={selectedFarmer.status} />
+                          {selectedFarmer.age ? `${selectedFarmer.age} yrs` : 'N/A'} (
+                          {selectedFarmer.dob ? new Date(selectedFarmer.dob).toLocaleDateString('en-IN') : 'DOB N/A'})
                         </span>
                       </div>
                       <div className="detail-field">
-                        <span className="field-label">{t('common.date')}</span>
+                        <span className="field-label">{t('farmers.kycStatus', 'KYC Verification')}</span>
+                        <span className="field-value flex items-center gap-2">
+                          <StatusBadge
+                            status={selectedFarmer.kycStatus || (selectedFarmer.kycVerified ? 'VERIFIED' : 'PENDING')}
+                          />
+                        </span>
+                      </div>
+                      <div className="detail-field">
+                        <span className="field-label">{t('common.status', 'Account Status')}</span>
                         <span className="field-value">
-                          {new Date(selectedFarmer.createdAt).toLocaleString()}
+                          <StatusBadge status={selectedFarmer.status} />
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="detail-section">
-                    <h3 className="section-title">{t('farmers.fpoName')} & {t('farmers.address')}</h3>
+                  {selectedFarmer.kycStatus === 'REJECTED' && selectedFarmer.kycRejectionReason && (
+                    <div className="rejection-alert-box p-3 mt-3 bg-red-950/20 border border-red-500/30 rounded text-sm text-red-400">
+                      <strong>KYC Rejection Reason:</strong> {selectedFarmer.kycRejectionReason}
+                    </div>
+                  )}
+
+                  <div className="detail-section mt-4">
+                    <h3 className="section-title">{t('farmers.fpoName', 'FPO Affiliation & Address')}</h3>
                     <div className="detail-grid">
                       <div className="detail-field">
-                        <span className="field-label">{t('farmers.fpoName')}</span>
-                        <span className="field-value">{selectedFarmer.fpoName}</span>
+                        <span className="field-label">{t('farmers.fpoName', 'FPO Name')}</span>
+                        <span className="field-value">{selectedFarmer.fpoName || 'Green Valley Farmers Producer Co.'}</span>
                       </div>
                       <div className="detail-field">
-                        <span className="field-label">{t('farmers.registrationNo')}</span>
-                        <span className="field-value">{selectedFarmer.fpoRegistrationNo}</span>
+                        <span className="field-label">{t('farmers.registrationNo', 'FPO Reg #')}</span>
+                        <span className="field-value">{selectedFarmer.fpoRegistrationNo || 'FPO-MH-2024-001'}</span>
                       </div>
                       <div className="detail-field col-span-2">
-                        <span className="field-label">{t('farmers.address')}</span>
+                        <span className="field-label">{t('farmers.address', 'Residential Address')}</span>
                         <span className="field-value">{formatAddress(selectedFarmer.address)}</span>
                       </div>
                     </div>
@@ -482,54 +454,44 @@ const Farmers = () => {
               {/* TAB 2: Loan History */}
               {activeModalTab === 'loans' && (
                 <div className="tab-content loans-tab">
-                  {selectedFarmer.loans.length === 0 ? (
+                  {selectedFarmer.loans?.length === 0 ? (
                     <EmptyState
                       icon={FileText}
-                      title={t('farmers.noLoans')}
-                      description={t('farmers.noLoans')}
+                      title={t('farmers.noLoans', 'No Credit Facilities')}
+                      description={t('farmers.noLoans', 'This farmer has not submitted any loan applications.')}
                     />
                   ) : (
-                    <div className="loans-list">
+                    <div className="loans-list space-y-3">
                       {selectedFarmer.loans.map((loan) => (
-                        <div key={loan._id} className="loan-card-item glass-panel">
-                          <div className="loan-card-header">
+                        <div key={loan._id} className="loan-card-item glass-panel p-4 rounded-lg border border-border">
+                          <div className="flex justify-between items-start mb-2">
                             <div>
-                              <span className="loan-id-tag">{t('loans.loanId')}: {loan._id.substring(0, 10)}...</span>
-                              <h4 className="loan-purpose-title">{loan.purpose}</h4>
+                              <h4 className="font-semibold text-main text-base">{loan.purpose}</h4>
+                              <span className="text-xs text-muted font-mono">ID: #{loan._id}</span>
                             </div>
-                            <StatusBadge status={loan.status} />
+                            <StatusBadge status={loan.status} size="small" />
                           </div>
 
-                          <div className="loan-card-details">
-                            <div className="loan-metric">
-                              <span className="metric-label">{t('loans.amount')}</span>
-                              <span className="metric-value font-highlight">
-                                ₹{loan.loanAmount?.toLocaleString('en-IN')}
-                              </span>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mt-3">
+                            <div>
+                              <span className="text-xs text-muted block">Applied Amount</span>
+                              <strong className="text-main">₹{(loan.loanAmount || 0).toLocaleString('en-IN')}</strong>
                             </div>
-                            <div className="loan-metric">
-                              <span className="metric-label">{t('loans.tenure')}</span>
-                              <span className="metric-value">{loan.tenureMonths} {t('common.months')}</span>
+                            <div>
+                              <span className="text-xs text-muted block">Disbursed Amount</span>
+                              <strong className="text-emerald">
+                                {loan.disbursedAmount ? `₹${loan.disbursedAmount.toLocaleString('en-IN')}` : '—'}
+                              </strong>
                             </div>
-                            <div className="loan-metric">
-                              <span className="metric-label">{t('loanDetail.interestRateLabel')}</span>
-                              <span className="metric-value">{loan.interestRate || 0}%</span>
+                            <div>
+                              <span className="text-xs text-muted block">Tenure</span>
+                              <span className="text-main">{loan.tenureMonths || 12} months</span>
                             </div>
-                            {loan.disbursedAmount > 0 && (
-                              <div className="loan-metric">
-                                <span className="metric-label">{t('disbursement.disbursedAmount')}</span>
-                                <span className="metric-value text-indigo">
-                                  ₹{loan.disbursedAmount?.toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                            )}
+                            <div>
+                              <span className="text-xs text-muted block">Interest Rate</span>
+                              <span className="text-main">{loan.interestRate || 6}% p.a.</span>
+                            </div>
                           </div>
-
-                          {loan.remarks && (
-                            <div className="loan-remarks-box">
-                              <strong>{t('common.remarks')}:</strong> {loan.remarks}
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
@@ -537,45 +499,57 @@ const Farmers = () => {
                 </div>
               )}
 
-              {/* TAB 3: Verification Documents */}
+              {/* TAB 3: Documents */}
               {activeModalTab === 'documents' && (
                 <div className="tab-content docs-tab">
-                  {selectedFarmer.documents.length === 0 ? (
+                  {selectedFarmer.documents?.length === 0 ? (
                     <EmptyState
                       icon={ShieldCheck}
-                      title={t('documents.noDocsFound')}
-                      description={t('documents.noDocsFound')}
+                      title={t('documents.noDocsFound', 'No Documents Found')}
+                      description={t('documents.noDocsFound', 'No verification documents uploaded yet.')}
                     />
                   ) : (
-                    <div className="docs-grid">
+                    <div className="docs-grid grid grid-cols-1 md:grid-cols-2 gap-3">
                       {selectedFarmer.documents.map((doc) => (
-                        <div key={doc._id} className="doc-card-item glass-panel">
-                          <div className="doc-card-header">
-                            <span className="doc-type-badge">{doc.documentType ? doc.documentType.toUpperCase() : t('loanDetail.uploadedDocs')}</span>
-                            <StatusBadge status={doc.status} size="small" />
-                          </div>
-                          <h4 className="doc-name-title">{doc.documentName}</h4>
-                          <span className="doc-date">
-                            {t('documents.uploadedAt')}: {new Date(doc.uploadedAt || doc.createdAt).toLocaleDateString()}
-                          </span>
-
-                          {doc.rejectionReason && (
-                            <div className="doc-rejection-msg">
-                              <strong>{t('documents.rejectionReason')}:</strong> {doc.rejectionReason}
+                        <div key={doc._id} className="doc-card-item glass-panel p-4 flex flex-col justify-between">
+                          <div>
+                            <div className="doc-card-header flex justify-between items-center mb-2">
+                              <span className="doc-type-badge bg-primary/10 text-primary text-xs px-2 py-0.5 rounded font-semibold">
+                                {doc.documentType?.toUpperCase() || 'DOCUMENT'}
+                              </span>
+                              <StatusBadge status={doc.status} size="small" />
                             </div>
-                          )}
+                            <h4 className="doc-name-title font-semibold text-main text-sm truncate" title={doc.documentName}>
+                              {doc.documentName}
+                            </h4>
+                            <span className="doc-date text-xs text-muted block mt-1">
+                              Uploaded: {new Date(doc.uploadedAt || doc.createdAt).toLocaleDateString('en-IN')}
+                            </span>
+                            {doc.rejectionReason && (
+                              <div className="doc-rejection-msg text-xs text-rose mt-2 bg-rose-950/20 p-2 rounded">
+                                <strong>Reason:</strong> {doc.rejectionReason}
+                              </div>
+                            )}
+                          </div>
 
-                          {doc.fileUrl && (
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-secondary view-doc-link"
+                          <div className="doc-actions mt-3 flex items-center gap-2 pt-2 border-t border-border">
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm flex items-center gap-1"
+                              onClick={() => openDocumentPreview(doc)}
                             >
-                              <ExternalLink size={14} />
-                              <span>{t('documents.viewDocument')}</span>
-                            </a>
-                          )}
+                              <Eye size={13} />
+                              <span>Preview</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm flex items-center gap-1"
+                              onClick={() => downloadDocumentFile(doc)}
+                            >
+                              <Download size={13} />
+                              <span>Download</span>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -584,9 +558,13 @@ const Farmers = () => {
               )}
             </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setSelectedFarmer(null)}>
-                {t('common.close')}
+            <div className="modal-footer mt-4 flex justify-end">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setSelectedFarmer(null)}
+              >
+                {t('common.close', 'Close')}
               </button>
             </div>
           </div>

@@ -4,7 +4,10 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import ta from './locales/ta.json';
 
-const savedLanguage = localStorage.getItem('fpo_admin_language') || 'en';
+const savedLanguage =
+  localStorage.getItem('fpo_language') ||
+  localStorage.getItem('fpo_admin_language') ||
+  'en';
 
 i18n
   .use(initReactI18next)
@@ -23,6 +26,7 @@ i18n
 
 // Keep localStorage in sync whenever the language changes
 i18n.on('languageChanged', (lng) => {
+  localStorage.setItem('fpo_language', lng);
   localStorage.setItem('fpo_admin_language', lng);
 });
 

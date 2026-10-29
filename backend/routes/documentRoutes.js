@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const {
   uploadDocument,
+  uploadKycDocument,
   getMyDocuments,
   getLoanDocuments,
+  getDocumentFile,
   getAllDocuments,
   verifyDocument,
   rejectDocument,
@@ -14,10 +16,12 @@ const { handleSingleUpload } = require('../middleware/uploadMiddleware');
 
 // Farmer Routes
 router.post('/upload', protect, authorize('FARMER'), handleSingleUpload('file'), uploadDocument);
+router.post('/kyc-upload', protect, authorize('FARMER'), handleSingleUpload('file'), uploadKycDocument);
 router.get('/my', protect, authorize('FARMER'), getMyDocuments);
 
 // Shared Route (FARMER can access own loan documents, FPO_ADMIN can access any)
 router.get('/loan/:loanId', protect, authorize('FARMER', 'FPO_ADMIN'), getLoanDocuments);
+router.get('/:id/file', protect, authorize('FARMER', 'FPO_ADMIN'), getDocumentFile);
 
 // FPO Admin Routes
 router.get('/', protect, authorize('FPO_ADMIN'), getAllDocuments);

@@ -51,6 +51,24 @@ const repaymentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    lastUpcomingReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    upcomingReminderCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lastOverdueReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    overdueReminderCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

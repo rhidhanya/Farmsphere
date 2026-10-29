@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { loanAPI, repaymentAPI, documentAPI } from '../api/client';
+import { openDocumentPreview } from '../utils/documentPreview';
 import {
   Sprout,
   LogOut,
@@ -16,6 +17,10 @@ import {
   ShieldCheck,
   RefreshCw,
   ExternalLink,
+  ChevronRight,
+  CalendarClock,
+  Receipt,
+  ClipboardList,
 } from 'lucide-react';
 import './FarmerDashboard.css';
 
@@ -76,6 +81,7 @@ const FarmerDashboard = () => {
       case 'SUBMITTED':
       case 'UNDER_REVIEW':
       case 'PENDING':
+      case 'PARTIAL':
         return 'badge-warning';
       case 'REJECTED':
       case 'OVERDUE':
@@ -85,98 +91,139 @@ const FarmerDashboard = () => {
     }
   };
 
-  // Summary Metrics
+  // Summary Metrics strictly based on actual backend data
+  const totalApplications = loans.length;
   const totalLoanAmount = loans.reduce((acc, curr) => acc + (curr.loanAmount || 0), 0);
-  const activeLoans = loans.filter((l) => ['APPROVED', 'DISBURSED', 'UNDER_REVIEW'].includes(l.status)).length;
-  const pendingRepayments = repayments.filter((r) => r.status === 'PENDING' || r.status === 'OVERDUE').length;
+  const activeLoans = loans.filter((l) => l.status === 'DISBURSED').length;
+  const pendingRepayments = repayments.filter(
+    (r) => r.paymentStatus === 'PENDING' || r.paymentStatus === 'OVERDUE' || r.paymentStatus === 'PARTIAL'
+  ).length;
+  const overdueRepayments = repayments.filter((r) => r.paymentStatus === 'OVERDUE').length;
 
   return (
-    <div className="farmer-dashboard-layout">
-      {/* Top Navigation */}
-      <header className="farmer-header glass-panel">
-        <div className="farmer-brand">
-          <div className="farmer-brand-icon">
-            <Sprout size={24} />
-          </div>
-          <div>
-            <h2>{t('farmerDashboard.portalTitle')}</h2>
-            <p>{t('farmerDashboard.portalSub')}</p>
-          </div>
-        </div>
-
-        <div className="farmer-user-actions">
-          <div className="farmer-profile-chip">
-            <div className="farmer-avatar">
-              <User size={18} />
-            </div>
-            <div className="farmer-meta">
-              <span className="farmer-name">{user?.name || 'Farmer Member'}</span>
-              <span className="farmer-email">{user?.email}</span>
-            </div>
-            <span className="badge badge-success role-badge">FARMER</span>
-          </div>
-
-          <button onClick={handleLogout} className="btn-logout" title={t('nav.signOut')}>
-            <LogOut size={18} />
-            <span>{t('nav.signOut')}</span>
-          </button>
-        </div>
-      </header>
-
+    <div className="farmer-dashboard-layout" style={{ minHeight: 'auto', background: 'transparent' }}>
       {/* Main Content Area */}
-      <main className="farmer-main-container">
+      <main className="farmer-main-container" style={{ padding: '0 0 2rem 0', maxWidth: '100%' }}>
         {/* Welcome & Stats Row */}
         <section className="farmer-stats-grid">
-          <div className="stat-card glass-panel">
+          {/* 1. Total Applications */}
+          <div
+            className="stat-card glass-panel"
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate('/farmer/applications')}
+            title="View My Applications"
+          >
             <div className="stat-icon-wrap icon-loans">
+              <ClipboardList size={24} />
+            </div>
+            <div className="stat-data">
+              <span className="stat-label">{t('farmerDashboard.totalApplications', 'Total Applications')}</span>
+              <span className="stat-value">{totalApplications}</span>
+              <span className="stat-sub">
+                {t('farmerDashboard.amountRequested', { amount: totalLoanAmount.toLocaleString('en-IN') })}
+              </span>
+            </div>
+          </div>
+
+          {/* 2. Active Loans */}
+          <div
+            className="stat-card glass-panel"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setActiveTab('loans')}
+            title={t('farmerDashboard.activeLoans', 'View Active Loans')}
+          >
+            <div className="stat-icon-wrap icon-active">
               <CreditCard size={24} />
             </div>
             <div className="stat-data">
-              <span className="stat-label">{t('farmerDashboard.totalApplied')}</span>
-              <span className="stat-value">₹{totalLoanAmount.toLocaleString('en-IN')}</span>
-              <span className="stat-sub">{loans.length} application(s)</span>
-            </div>
-          </div>
-
-          <div className="stat-card glass-panel">
-            <div className="stat-icon-wrap icon-active">
-              <Clock size={24} />
-            </div>
-            <div className="stat-data">
-              <span className="stat-label">{t('farmerDashboard.activeLoans')}</span>
+              <span className="stat-label">{t('farmerDashboard.activeLoans', 'Active Loans')}</span>
               <span className="stat-value">{activeLoans}</span>
-              <span className="stat-sub">Under review or active</span>
+              <span className="stat-sub">
+                {t('farmerDashboard.pendingReviewCount', { count: loans.filter((l) => ['SUBMITTED', 'UNDER_REVIEW'].includes(l.status)).length })}
+              </span>
             </div>
           </div>
 
-          <div className="stat-card glass-panel">
+          {/* 3. Pending Installments */}
+          <div
+            className="stat-card glass-panel"
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate('/farmer/repayments')}
+            title={t('farmerDashboard.pendingInstallments', 'View Repayments Schedule')}
+          >
             <div className="stat-icon-wrap icon-repay">
-              <FileText size={24} />
+              <CalendarClock size={24} />
             </div>
             <div className="stat-data">
-              <span className="stat-label">{t('farmerDashboard.pendingInstallments')}</span>
+              <span className="stat-label">{t('farmerDashboard.pendingInstallments', 'Pending Installments')}</span>
               <span className="stat-value">{pendingRepayments}</span>
-              <span className="stat-sub">Awaiting payment</span>
+              <span className="stat-sub">
+                {overdueRepayments > 0 ? (
+                  <strong className="text-danger">{t('farmerDashboard.overdueCount', { count: overdueRepayments })}</strong>
+                ) : (
+                  t('farmerDashboard.awaitingPayment', 'Awaiting payment')
+                )}
+              </span>
             </div>
           </div>
 
+          {/* 4. KYC Status */}
           <div className="stat-card glass-panel">
             <div className="stat-icon-wrap icon-kyc">
               <ShieldCheck size={24} />
             </div>
             <div className="stat-data">
-              <span className="stat-label">{t('farmerDashboard.kycStatus')}</span>
+              <span className="stat-label">{t('farmerDashboard.kycStatus', 'KYC Status')}</span>
               <span className="stat-value">
-                {user?.kycVerified ? (
-                  <span className="text-success">{t('farmers.kycVerified')}</span>
+                {user?.kycStatus === 'VERIFIED' || user?.kycVerified ? (
+                  <span className="text-success">{t('farmers.kycVerified', 'VERIFIED')}</span>
+                ) : user?.kycStatus === 'REJECTED' ? (
+                  <span className="text-danger" style={{ color: '#ef4444' }}>{t('farmers.kycRejected', 'REJECTED')}</span>
                 ) : (
-                  <span className="text-warning">{t('farmers.kycPending')}</span>
+                  <span className="text-warning">{t('farmers.kycPending', 'PENDING')}</span>
                 )}
               </span>
-              <span className="stat-sub">{user?.fpoName || 'Member'}</span>
+              <span className="stat-sub">{user?.fpoName || t('nav.fpoMember', 'FPO Member')}</span>
             </div>
           </div>
         </section>
+
+        {/* KYC Rejection Banner if applicable */}
+        {user?.kycStatus === 'REJECTED' && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '12px',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <AlertCircle size={20} color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />
+              <div>
+                <strong style={{ color: '#ef4444', fontSize: '0.92rem', display: 'block' }}>
+                  {t('farmerDashboard.kycActionRequired', 'KYC Verification Action Required')}
+                </strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: 'var(--text-main)' }}>
+                  {t('farmerDashboard.reasonLabel', 'Reason:')} {user?.kycRejectionReason || t('farmerDashboard.kycBannerSub', 'Uploaded certificates require correction.')}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => navigate('/farmer/kyc')}
+            >
+              {t('farmerDashboard.updateDocsBtn', 'Update Documents')}
+            </button>
+          </div>
+        )}
 
         {/* Content Navigation Tabs */}
         <div className="tabs-header">
@@ -233,37 +280,82 @@ const FarmerDashboard = () => {
                     <div className="farmer-empty-state">
                       <CreditCard size={42} />
                       <p>{t('farmerDashboard.noLoans')}</p>
-                      <span>Your submitted loan applications will appear here.</span>
+                      <span>{t('farmerDashboard.noLoansDesc', 'Your submitted loan applications will appear here.')}</span>
+                      <button
+                        type="button"
+                        className="btn-primary-action"
+                        style={{
+                          marginTop: '1.25rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.6rem 1.25rem',
+                          background: 'var(--primary)',
+                          color: '#042f2e',
+                          fontWeight: '700',
+                          borderRadius: 'var(--radius-md)',
+                          boxShadow: '0 2px 8px var(--primary-glow)',
+                        }}
+                        onClick={() => navigate('/farmer/loans')}
+                      >
+                        <Sprout size={18} />
+                        <span>{t('farmerLoans.browseSchemes')}</span>
+                      </button>
                     </div>
                   ) : (
-                    <table className="farmer-table">
-                      <thead>
-                        <tr>
-                          <th>{t('loans.purpose')}</th>
-                          <th>{t('loans.amount')}</th>
-                          <th>{t('loans.tenure')}</th>
-                          <th>{t('disbursement.interestRate')}</th>
-                          <th>{t('loans.status')}</th>
-                          <th>{t('loans.appliedDate')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loans.map((loan) => (
-                          <tr key={loan._id}>
-                            <td className="font-medium text-main">{loan.purpose}</td>
-                            <td className="font-semibold">₹{loan.loanAmount?.toLocaleString('en-IN')}</td>
-                            <td>{loan.tenureMonths} Months</td>
-                            <td>{loan.interestRate || 4}% p.a.</td>
-                            <td>
-                              <span className={`status-pill ${getStatusBadgeClass(loan.status)}`}>
-                                {loan.status}
-                              </span>
-                            </td>
-                            <td>{new Date(loan.createdAt).toLocaleDateString()}</td>
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+                        <button
+                          type="button"
+                          className="view-link"
+                          onClick={() => navigate('/farmer/applications')}
+                          style={{ fontWeight: 600 }}
+                        >
+                          <span>{t('nav.myApplications', 'View All Applications')}</span>
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                      <table className="farmer-table">
+                        <thead>
+                          <tr>
+                            <th>{t('loans.purpose')}</th>
+                            <th>{t('loans.amount')}</th>
+                            <th>{t('loans.tenure')}</th>
+                            <th>{t('disbursement.interestRate')}</th>
+                            <th>{t('loans.status')}</th>
+                            <th>{t('loans.appliedDate')}</th>
+                            <th>{t('common.actions', 'Action')}</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {loans.map((loan) => (
+                            <tr key={loan._id}>
+                              <td className="font-medium text-main">{loan.purpose}</td>
+                              <td className="font-semibold">₹{loan.loanAmount?.toLocaleString('en-IN')}</td>
+                              <td>{loan.tenureMonths} {t('farmerLoans.months', 'Months')}</td>
+                              <td>{loan.interestRate || 4}% {t('farmerLoans.pa', 'p.a.')}</td>
+                              <td>
+                                <span className={`status-pill ${getStatusBadgeClass(loan.status)}`}>
+                                  {t(`status.${(loan.status || '').toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase())}`, loan.status)}
+                                </span>
+                              </td>
+                              <td>{new Date(loan.createdAt).toLocaleDateString()}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="view-link"
+                                  onClick={() => navigate(`/farmer/loans/${loan._id}`)}
+                                  title={t('common.details', 'Details')}
+                                >
+                                  <span>{t('common.details', 'Details')}</span>
+                                  <ChevronRight size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
                   )}
                 </div>
               )}
@@ -275,37 +367,72 @@ const FarmerDashboard = () => {
                     <div className="farmer-empty-state">
                       <Clock size={42} />
                       <p>{t('farmerDashboard.noRepayments')}</p>
-                      <span>Repayment schedules are generated once an approved loan is disbursed.</span>
+                      <span>{t('farmerDashboard.noRepaymentsDesc', 'Repayment schedules are generated once an approved loan is disbursed.')}</span>
                     </div>
                   ) : (
-                    <table className="farmer-table">
-                      <thead>
-                        <tr>
-                          <th>{t('repayments.installment')} #</th>
-                          <th>{t('repayments.amountDue')}</th>
-                          <th>{t('repayments.dueDate')}</th>
-                          <th>{t('loans.status')}</th>
-                          <th>{t('repayments.amountPaid')}</th>
-                          <th>{t('repayments.paidDate')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {repayments.map((repay) => (
-                          <tr key={repay._id}>
-                            <td className="font-medium">{t('repayments.installmentTag', { number: repay.installmentNumber })}</td>
-                            <td className="font-semibold">₹{repay.amountDue?.toLocaleString('en-IN')}</td>
-                            <td>{new Date(repay.dueDate).toLocaleDateString()}</td>
-                            <td>
-                              <span className={`status-pill ${getStatusBadgeClass(repay.status)}`}>
-                                {repay.status}
-                              </span>
-                            </td>
-                            <td>₹{(repay.amountPaid || 0).toLocaleString('en-IN')}</td>
-                            <td>{repay.paidDate ? new Date(repay.paidDate).toLocaleDateString() : '—'}</td>
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+                        <button
+                          type="button"
+                          className="view-link"
+                          onClick={() => navigate('/farmer/repayments')}
+                          style={{ fontWeight: 600 }}
+                        >
+                          <span>{t('farmerRepayments.title', 'Repayment Tracking')}</span>
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                      <table className="farmer-table">
+                        <thead>
+                          <tr>
+                            <th>{t('repayments.installment')} #</th>
+                            <th>{t('repayments.amountDue')}</th>
+                            <th>{t('repayments.dueDate')}</th>
+                            <th>{t('loans.status')}</th>
+                            <th>{t('repayments.amountPaid')}</th>
+                            <th>{t('farmerRepayments.remainingAmount', 'Remaining')}</th>
+                            <th>{t('repayments.paidDate')}</th>
+                            <th>{t('common.actions', 'Action')}</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {repayments.map((repay) => {
+                            const remaining = Math.max(0, (repay.amountDue || 0) - (repay.amountPaid || 0));
+                            const loanId = repay.loan?._id || repay.loan;
+                            return (
+                              <tr key={repay._id}>
+                                <td className="font-medium">{t('repayments.installmentTag', { number: repay.installmentNumber })}</td>
+                                <td className="font-semibold">₹{repay.amountDue?.toLocaleString('en-IN')}</td>
+                                <td>{new Date(repay.dueDate).toLocaleDateString()}</td>
+                                <td>
+                                  <span className={`status-pill ${getStatusBadgeClass(repay.paymentStatus)}`}>
+                                    {t(`status.${(repay.paymentStatus || '').toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase())}`, repay.paymentStatus)}
+                                  </span>
+                                </td>
+                                <td className="text-success font-semibold">₹{(repay.amountPaid || 0).toLocaleString('en-IN')}</td>
+                                <td>₹{remaining.toLocaleString('en-IN')}</td>
+                                <td>{repay.paidDate ? new Date(repay.paidDate).toLocaleDateString() : '—'}</td>
+                                <td>
+                                  {loanId ? (
+                                    <button
+                                      type="button"
+                                      className="view-link"
+                                      onClick={() => navigate(`/farmer/loans/${loanId}`)}
+                                      title={t('common.details', 'Details')}
+                                    >
+                                      <span>{t('common.details', 'Details')}</span>
+                                      <ChevronRight size={14} />
+                                    </button>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </>
                   )}
                 </div>
               )}
@@ -317,7 +444,7 @@ const FarmerDashboard = () => {
                     <div className="farmer-empty-state">
                       <FolderOpen size={42} />
                       <p>{t('farmerDashboard.noDocs')}</p>
-                      <span>Land records and identity proofs uploaded for your loans will appear here.</span>
+                      <span>{t('farmerDashboard.noDocsDesc', 'Land records and identity proofs uploaded for your loans will appear here.')}</span>
                     </div>
                   ) : (
                     <table className="farmer-table">
@@ -343,15 +470,14 @@ const FarmerDashboard = () => {
                             <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
                             <td>
                               {doc.fileUrl ? (
-                                <a
-                                  href={doc.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
+                                  type="button"
                                   className="view-link"
+                                  onClick={() => openDocumentPreview(doc)}
                                 >
                                   <span>{t('common.view')}</span>
                                   <ExternalLink size={14} />
-                                </a>
+                                </button>
                               ) : (
                                 '—'
                               )}

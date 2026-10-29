@@ -6,9 +6,11 @@ import { ToastProvider, ErrorBoundary } from './components';
 import Loading from './components/Loading';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
+import FarmerLayout from './layouts/FarmerLayout';
 
 // Pages
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Farmers from './pages/Farmers';
 import Loans from './pages/Loans';
@@ -17,6 +19,13 @@ import Repayments from './pages/Repayments';
 import Reports from './pages/Reports';
 import Notifications from './pages/Notifications';
 import FarmerDashboard from './pages/FarmerDashboard';
+import FarmerLoans from './pages/FarmerLoans';
+import FarmerLoanDetail from './pages/FarmerLoanDetail';
+import FarmerApplications from './pages/FarmerApplications';
+import FarmerRepayments from './pages/FarmerRepayments';
+import FarmerApply from './pages/FarmerApply';
+import FarmerDocuments from './pages/FarmerDocuments';
+import FarmerKycDocuments from './pages/FarmerKycDocuments';
 import DocumentVerification from './pages/DocumentVerification';
 import LoanDisbursement from './pages/LoanDisbursement';
 import Overdue from './pages/Overdue';
@@ -56,19 +65,31 @@ function App() {
               <Routes>
                 {/* Public Route */}
                 <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
                 {/* Root Route: strictly authenticated or redirects to /login */}
                 <Route path="/" element={<RootRoute />} />
 
-                {/* Protected Farmer Route */}
+                {/* Protected Farmer Routes with FarmerLayout Sidebar & Header */}
                 <Route
-                  path="/farmer/dashboard"
+                  path="/farmer"
                   element={
                     <ProtectedRoute requiredRole="FARMER">
-                      <FarmerDashboard />
+                      <FarmerLayout />
                     </ProtectedRoute>
                   }
-                />
+                >
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<FarmerDashboard />} />
+                  <Route path="applications" element={<FarmerApplications />} />
+                  <Route path="loans" element={<FarmerLoans />} />
+                  <Route path="loans/:id" element={<FarmerLoanDetail />} />
+                  <Route path="apply" element={<FarmerApply />} />
+                  <Route path="apply-loan" element={<FarmerApply />} />
+                  <Route path="repayments" element={<FarmerRepayments />} />
+                  <Route path="documents" element={<FarmerDocuments />} />
+                  <Route path="kyc" element={<FarmerKycDocuments />} />
+                </Route>
 
                 {/* Protected Admin Routes */}
                 <Route

@@ -3,6 +3,8 @@ const Repayment = require('../models/Repayment');
 const Loan = require('../models/Loan');
 const calculateEMI = require('../utils/emiCalculator');
 const checkAndUpdateOverdueRepayments = require('../utils/overdueChecker');
+const { getNotificationService } = require('../services/notificationService');
+
 
 /**
  * Generate repayment schedule automatically when a loan is DISBURSED
@@ -266,6 +268,30 @@ const markRepaymentPaid = async (req, res) => {
     if (allLoanRepayments.length > 0 && allLoanRepayments.every((r) => r.paymentStatus === 'PAID')) {
       await Loan.findByIdAndUpdate(repayment.loan, { status: 'CLOSED' });
       loanClosed = true;
+    }
+
+    if (newAmountPaid > 0) {
+      try {
+        const remainingBalance = allLoanRepayments.reduce(
+          (sum, r) => sum + (r.amountDue - (r.amountPaid || 0)),
+          0
+        );
+        await getNotificationService().notify({
+          userId: repayment.borrower,
+          type: 'PAYMENT_RECORDED',
+          title: 'Repayment Received',
+          body: `Payment of ₹${newAmountPaid.toLocaleString('en-IN')} for loan #${String(repayment.loan).slice(-6)} received. Balance: ₹${remainingBalance.toLocaleString('en-IN')}.`,
+          entityType: 'Repayment',
+          entityId: repayment._id,
+          metadata: {
+            loanId: repayment.loan,
+            amount: newAmountPaid,
+            remainingBalance,
+          },
+        });
+      } catch (notifyErr) {
+        console.error('[notify] PAYMENT_RECORDED error:', notifyErr.message);
+      }
     }
 
     return res.status(200).json({

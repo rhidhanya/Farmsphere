@@ -1,13 +1,29 @@
 const mongoose = require('mongoose');
 const Loan = require('../models/Loan');
 const { recordAuditLog } = require('./auditController');
+const { assertLoanTransition } = require('../utils/loanStateMachine');
+const { publicServerError } = require('../utils/publicError');
+const { getNotificationService } = require('../services/notificationService');
+
+const failFrom = (error, res, fallback) => {
+  if (error.statusCode) {
+    return res.status(error.statusCode).json({
+      status: 'fail',
+      message: error.message,
+    });
+  }
+  return res.status(500).json({
+    status: 'error',
+    message: publicServerError(error, fallback),
+  });
+};
 
 // @desc    Submit a new loan application
 // @route   POST /api/loans
 // @access  Private (FARMER only)
 const createLoan = async (req, res) => {
   try {
-    const { loanAmount, purpose, interestRate, tenureMonths, repaymentFrequency, remarks } = req.body || {};
+    const { loanAmount, purpose, interestRate, tenureMonths, repaymentFrequency, remarks, loanProductId } = req.body || {};
 
     // Input Validation
     if (!loanAmount || Number(loanAmount) <= 0) {
@@ -38,9 +54,13 @@ const createLoan = async (req, res) => {
       });
     }
 
+    const validLoanProductId =
+      loanProductId && mongoose.Types.ObjectId.isValid(loanProductId) ? loanProductId : null;
+
     // Always associate loan with req.user._id (ignore client-supplied farmer/borrower ID)
     const loan = await Loan.create({
       farmer: req.user._id,
+      loanProductId: validLoanProductId,
       loanAmount: Number(loanAmount),
       purpose: purpose.trim(),
       interestRate: interestRate !== undefined ? Number(interestRate) : 0,
@@ -49,6 +69,23 @@ const createLoan = async (req, res) => {
       status: 'SUBMITTED',
       remarks,
     });
+
+    try {
+      await getNotificationService().notify({
+        userId: req.user._id,
+        type: 'LOAN_SUBMITTED',
+        title: 'Loan Application Submitted',
+        body: `Your loan application #${String(loan._id).slice(-6)} for ₹${loan.loanAmount.toLocaleString('en-IN')} has been submitted.`,
+        entityType: 'Loan',
+        entityId: loan._id,
+        metadata: {
+          loanId: loan._id,
+          amount: loan.loanAmount,
+        },
+      });
+    } catch (notifyErr) {
+      console.error('[notify] LOAN_SUBMITTED error:', notifyErr.message);
+    }
 
     return res.status(201).json({
       status: 'success',
@@ -71,6 +108,7 @@ const getMyLoans = async (req, res) => {
   try {
     const loans = await Loan.find({ farmer: req.user._id })
       .populate('approvedBy', 'name email phone')
+      .populate('loanProductId')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -116,6 +154,7 @@ const getAllLoans = async (req, res) => {
     const loans = await Loan.find(query)
       .populate('farmer', 'name email phone fpoName address')
       .populate('approvedBy', 'name email phone')
+      .populate('loanProductId')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum);
@@ -154,7 +193,8 @@ const getLoanById = async (req, res) => {
 
     const loan = await Loan.findById(id)
       .populate('farmer', 'name email phone fpoName address')
-      .populate('approvedBy', 'name email phone');
+      .populate('approvedBy', 'name email phone')
+      .populate('loanProductId');
 
     if (!loan) {
       return res.status(404).json({
@@ -293,6 +333,23 @@ const approveLoan = async (req, res) => {
       { loanAmount: loan.loanAmount, interestRate: loan.interestRate, tenureMonths: loan.tenureMonths }
     );
 
+    try {
+      await getNotificationService().notify({
+        userId: loan.farmer,
+        type: 'LOAN_APPROVED',
+        title: 'Loan Approved',
+        body: `Congratulations! Your loan #${String(loan._id).slice(-6)} for ₹${loan.loanAmount.toLocaleString('en-IN')} has been approved.`,
+        entityType: 'Loan',
+        entityId: loan._id,
+        metadata: {
+          loanId: loan._id,
+          amount: loan.loanAmount,
+        },
+      });
+    } catch (notifyErr) {
+      console.error('[notify] LOAN_APPROVED error:', notifyErr.message);
+    }
+
     return res.status(200).json({
       status: 'success',
       message: 'Loan application successfully approved',
@@ -352,6 +409,23 @@ const rejectLoan = async (req, res) => {
     loan.remarks = remarks.trim();
 
     await loan.save();
+
+    try {
+      await getNotificationService().notify({
+        userId: loan.farmer,
+        type: 'LOAN_REJECTED',
+        title: 'Loan Application Update',
+        body: `Update on loan #${String(loan._id).slice(-6)}: Application was not approved. Reason: ${loan.remarks}.`,
+        entityType: 'Loan',
+        entityId: loan._id,
+        metadata: {
+          loanId: loan._id,
+          reason: loan.remarks,
+        },
+      });
+    } catch (notifyErr) {
+      console.error('[notify] LOAN_REJECTED error:', notifyErr.message);
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -427,6 +501,25 @@ const disburseLoan = async (req, res) => {
       `Loan disbursed: ₹${amountToDisburse}`,
       { disbursedAmount: amountToDisburse, disbursedDate: loan.disbursedDate }
     );
+
+    try {
+      const firstDue = repayments && repayments.length > 0 ? new Date(repayments[0].dueDate).toLocaleDateString('en-IN') : null;
+      await getNotificationService().notify({
+        userId: loan.farmer,
+        type: 'LOAN_DISBURSED',
+        title: 'Loan Disbursed',
+        body: `Loan #${String(loan._id).slice(-6)} of ₹${amountToDisburse.toLocaleString('en-IN')} has been disbursed.`,
+        entityType: 'Loan',
+        entityId: loan._id,
+        metadata: {
+          loanId: loan._id,
+          amount: amountToDisburse,
+          dueDate: firstDue,
+        },
+      });
+    } catch (notifyErr) {
+      console.error('[notify] LOAN_DISBURSED error:', notifyErr.message);
+    }
 
     return res.status(200).json({
       status: 'success',
